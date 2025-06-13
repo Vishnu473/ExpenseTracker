@@ -1,0 +1,23 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const user_controller_1 = require("../controllers/user.controller");
+const requestValidate_1 = require("../middleware/requestValidate");
+const user_schema_1 = require("../zod/user.schema");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = express_1.default.Router();
+router.post('/register', (0, requestValidate_1.validate)(user_schema_1.registerSchema), user_controller_1.registerUser);
+router.post('/login', (0, requestValidate_1.validate)(user_schema_1.loginSchema), user_controller_1.loginUser);
+router.post('/bank-account', auth_middleware_1.protect, (0, requestValidate_1.validate)(user_schema_1.accountNameSchema), user_controller_1.addBankAccount);
+router.delete('/bank-account', auth_middleware_1.protect, (0, requestValidate_1.validate)(user_schema_1.accountNameSchema), user_controller_1.removeBankAccount);
+router.patch('/bank-account/rename', auth_middleware_1.protect, user_controller_1.renameBankAccount);
+// router.patch('/credit-card/rename', protect, renameCreditCard);
+router.get('/payment-sources', auth_middleware_1.protect, user_controller_1.getPaymentSources);
+// router.post('/credit-card', protect, validate(accountNameSchema), addCreditCard);
+// router.delete('/credit-card', protect, validate(accountNameSchema), removeCreditCard);
+router.get('/logout', user_controller_1.logoutUser);
+router.get('/me', auth_middleware_1.protect, user_controller_1.getMe);
+exports.default = router;
