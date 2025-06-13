@@ -47,7 +47,6 @@ export const updateWallet = async (userId: string): Promise<void> => {
       });
     }
 
-    console.log(`💰 Wallet Updated: Income=${income}, Expense=${expense}, Savings=${validSavingAmount}, Balance=${balance}`);
     
   } catch (err) {
     console.error("❌ Error in updateWallet():", err);
