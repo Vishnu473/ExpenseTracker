@@ -15,8 +15,8 @@ export const registerUser = async (req: Request, res: Response) => {
 
     const hashed = await hashPassword(password);
     const user = await UserModel.create({ name, email, phone, password: hashed });
-
-    const wallet = await WalletModel.create({
+    console.log("Inside Register", user?._id);
+    await WalletModel.create({
       user_id: user._id,
       balance: 0,
       income: 0,
@@ -48,7 +48,12 @@ export const loginUser = async (req: Request, res: Response) => {
       res.status(400).json({ message: 'Invalid credentials' });
       return;
     }
-
+    if (!user.password) {
+  res.status(500).json({ message: 'User password is missing or corrupted.' });
+  return;
+}
+    console.log("stored Password",user.password);
+    
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
       res.status(400).json({ message: 'Invalid credentials' });
@@ -67,6 +72,7 @@ export const loginUser = async (req: Request, res: Response) => {
     res.status(200).json({ user: { name: user.name, email: user.email, phone: user.phone }, message: 'LoggedIn successfully' });
     return;
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: 'Failed to login user', error });
     return;
   }
