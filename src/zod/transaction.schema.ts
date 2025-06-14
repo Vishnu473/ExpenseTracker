@@ -42,3 +42,13 @@ export const transactionSchema = z
       path: ['source_detail'],
     }
   );
+
+export const getTransactionsQuerySchema = z.object({
+  page: z.string().optional().default('1'),
+  limit: z.string().optional().default('15'),
+  category_type: z.enum(['income', 'expense']).optional(),
+  sortBy: z.enum(['amount', 'transaction_date']).optional().default('transaction_date'),
+  order: z.enum(['asc', 'desc']).optional().default('desc'),
+  fromDate: z.string().optional(), // ISO string
+  toDate: z.string().optional(),
+});

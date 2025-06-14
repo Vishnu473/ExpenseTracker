@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { TransactionModel } from '../models/transaction.model';
 import { UserModel } from '../models/user.model';
 import { ITransaction } from '../interfaces/transaction.interface';
+import { getTransactionsQuerySchema } from '../zod/transaction.schema';
 
 export const createTransaction = async (req: Request, res: Response) => {
   try {
@@ -44,14 +45,70 @@ export const createTransaction = async (req: Request, res: Response) => {
 
 export const getTransactions = async (req: Request, res: Response) => {
   try {
-    const transactions = await TransactionModel.find({ user: req?.user?._id }).sort({ transaction_date: -1 });
-    res.status(200).json(transactions);
+    const result = getTransactionsQuerySchema.safeParse(req.query);
+    if (!result.success) {
+      res.status(400).json({ message: 'Invalid query parameters', errors: result.error.format() });
+      return;
+    }
+
+    const { page, limit, category_type, sortBy, order, fromDate, toDate } = result.data;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter: Record<string, any> = {
+      user: req.user._id, // assuming you're using auth middleware
+    };
+
+    if (category_type) {
+      filter.category_type = category_type;
+    }
+
+    if (fromDate || toDate) {
+      filter.transaction_date = {};
+      if (fromDate) filter.transaction_date.$gte = new Date(fromDate);
+      if (toDate) filter.transaction_date.$lte = new Date(toDate);
+    }
+
+    const sortOption: { [key: string]: 1 | -1 } = {
+      [sortBy]: order === 'asc' ? 1 : -1,
+    };
+
+    const transactions = await TransactionModel.find(filter)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNum)
+      .exec();
+
+    const total = await TransactionModel.countDocuments(filter);
+
+    res.status(200).json({
+      data: transactions,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
     return;
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch transactions', error });
+    res.status(500).json({ message: 'Server Error', error });
     return;
   }
 };
+
+// export const getTransactions = async (req: Request, res: Response) => {
+//   try {
+//     const transactions = await TransactionModel.find({ user: req?.user?._id }).sort({ transaction_date: -1 });
+//     res.status(200).json(transactions);
+//     return;
+//   } catch (error) {
+//     res.status(500).json({ message: 'Failed to fetch transactions', error });
+//     return;
+//   }
+// };
 
 export const updateTransaction = async (req: Request, res: Response) => {
   try {
