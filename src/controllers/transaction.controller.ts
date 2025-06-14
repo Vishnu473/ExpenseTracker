@@ -43,62 +43,6 @@ export const createTransaction = async (req: Request, res: Response) => {
   }
 };
 
-export const getTransactions = async (req: Request, res: Response) => {
-  try {
-    const result = getTransactionsQuerySchema.safeParse(req.query);
-    if (!result.success) {
-      res.status(400).json({ message: 'Invalid query parameters', errors: result.error.format() });
-      return;
-    }
-
-    const { page, limit, category_type, sortBy, order, fromDate, toDate } = result.data;
-
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const filter: Record<string, any> = {
-      user: req.user._id, // assuming you're using auth middleware
-    };
-
-    if (category_type) {
-      filter.category_type = category_type;
-    }
-
-    if (fromDate || toDate) {
-      filter.transaction_date = {};
-      if (fromDate) filter.transaction_date.$gte = new Date(fromDate);
-      if (toDate) filter.transaction_date.$lte = new Date(toDate);
-    }
-
-    const sortOption: { [key: string]: 1 | -1 } = {
-      [sortBy]: order === 'asc' ? 1 : -1,
-    };
-
-    const transactions = await TransactionModel.find(filter)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limitNum)
-      .exec();
-
-    const total = await TransactionModel.countDocuments(filter);
-
-    res.status(200).json({
-      data: transactions,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum),
-      },
-    });
-    return;
-  } catch (error) {
-    res.status(500).json({ message: 'Server Error', error });
-    return;
-  }
-};
-
 // export const getTransactions = async (req: Request, res: Response) => {
 //   try {
 //     const transactions = await TransactionModel.find({ user: req?.user?._id }).sort({ transaction_date: -1 });
@@ -204,3 +148,100 @@ export const updateTransaction = async (req: Request, res: Response) => {
 //     return;
 //   }
 // };
+
+
+export const getTransactions = async (req: Request, res: Response) => {
+  try {
+    // Validate query parameters
+    console.log("Query : ",req.query);
+    const queryValidation = getTransactionsQuerySchema.safeParse(req.query);
+    
+    if (!queryValidation.success) {
+      res.status(400).json({
+        message: 'Invalid query parameters',
+        errors: queryValidation.error.errors
+      });
+      return;
+    }
+
+    const {
+      page,
+      limit,
+      search,
+      fromDate,
+      toDate,
+      category_type,
+      sortBy,
+      sortOrder
+    } = queryValidation.data;
+
+    // Build filter object
+    const filter: any = { user: req?.user?._id };
+
+    // Date range filtering
+    if (fromDate || toDate) {
+      filter.transaction_date = {};
+      if (fromDate) {
+        filter.transaction_date.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        const toDateEnd = new Date(toDate);
+        toDateEnd.setHours(23, 59, 59, 999);
+        filter.transaction_date.$lte = toDateEnd;
+      }
+    }
+
+    // Category type filtering
+    if (category_type) {
+      filter.category_type = category_type;
+    }
+
+    // Search functionality
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      filter.$or = [
+        { description: searchRegex },
+        { category_name: searchRegex }
+      ];
+    }
+
+    // Build sort object
+    const sort: any = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
+
+    // Execute query with pagination
+    const [transactions, totalCount] = await Promise.all([
+      TransactionModel.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      TransactionModel.countDocuments(filter)
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Response with pagination metadata
+    const response = {
+      data: transactions,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Failed to fetch transactions', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

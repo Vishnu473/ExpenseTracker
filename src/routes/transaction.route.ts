@@ -7,7 +7,7 @@ import {
 } from '../controllers/transaction.controller';
 import { protect } from '../middleware/auth.middleware';
 import { validate } from '../middleware/requestValidate';
-import { getTransactionsQuerySchema, transactionSchema } from '../zod/transaction.schema';
+import { transactionSchema } from '../zod/transaction.schema';
 
 const router = express.Router();
 

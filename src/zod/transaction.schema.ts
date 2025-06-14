@@ -44,11 +44,23 @@ export const transactionSchema = z
   );
 
 export const getTransactionsQuerySchema = z.object({
-  page: z.string().optional().default('1'),
-  limit: z.string().optional().default('15'),
+  // Pagination
+  page: z.string().transform(val => parseInt(val)).pipe(z.number().min(1)).default('1'),
+  limit: z.string().transform(val => parseInt(val)).pipe(z.number().min(1).max(100)).default('10'),
+  
+  // Search
+  search: z.string().optional(),
+  
+  // Filtering
+  fromDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid fromDate format',
+  }).optional(),
+  toDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid toDate format',
+  }).optional(),
   category_type: z.enum(['income', 'expense']).optional(),
-  sortBy: z.enum(['amount', 'transaction_date']).optional().default('transaction_date'),
-  order: z.enum(['asc', 'desc']).optional().default('desc'),
-  fromDate: z.string().optional(), // ISO string
-  toDate: z.string().optional(),
+  
+  // Sorting
+  sortBy: z.enum(['amount', 'transaction_date']).default('transaction_date'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
